@@ -1,0 +1,18 @@
+# Global owners
+* @Adeade151592
+
+# Terraform infrastructure
+terraform/ @Adeade151592
+
+# Kubernetes configurations
+kubernetes/ @Adeade151592
+
+# Security configurations
+*.yaml @Adeade151592
+*.yml @Adeade151592
+
+# Documentation
+docs/ @Adeade151592
+
+# CI/CD workflows
+.github/ @Adeade151592

@@ -1,0 +1,78 @@
+---
+# ArgoCD Application for Dev Environment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-services-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Adeade151592/APPS_REPO_URL.git
+    targetRevision: HEAD
+    path: dev/platform-services
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: applications
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# ArgoCD Application for Staging Environment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-services-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Adeade151592/APPS_REPO_URL.git
+    targetRevision: HEAD
+    path: staging/platform-services
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: applications
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# ArgoCD AppProject for production workloads
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: production
+  namespace: argocd
+spec:
+  description: Production workloads
+  sourceRepos:
+    - 'https://github.com/Adeade151592/APPS_REPO_URL.git'
+  destinations:
+    - namespace: 'applications'
+      server: https://kubernetes.default.svc
+    - namespace: 'monitoring'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

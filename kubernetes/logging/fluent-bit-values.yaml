@@ -1,0 +1,112 @@
+# Helm values for aws-for-fluent-bit
+# helm repo add eks https://aws.github.io/eks-charts
+# helm install aws-for-fluent-bit eks/aws-for-fluent-bit -n logging -f fluent-bit-values.yaml
+
+cloudWatchLogs:
+  enabled: true
+  region: eu-west-1
+  logGroupName: /aws/eks/cloud-platform/application-logs
+  logStreamPrefix: fluentbit-
+  autoCreateGroup: true
+
+firehose:
+  enabled: false
+
+kinesis:
+  enabled: false
+
+elasticsearch:
+  enabled: false
+
+parsers:
+  parsersFiles:
+    - /fluent-bit/parsers/parsers.conf
+  extraParsers: |
+    [PARSER]
+        Name   json
+        Format json
+        Time_Key time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+
+input:
+  enabled: true
+  tag: "kube.*"
+  path: "/var/log/containers/*.log"
+  db: "/var/log/flb_kube.db"
+  parser: docker
+  dockerMode: "On"
+  memBufLimit: 5MB
+  skipLongLines: "On"
+  refreshInterval: 10
+
+filter:
+  enabled: true
+  match: "kube.*"
+  kubeURL: "https://kubernetes.default.svc:443"
+  mergeLog: "On"
+  keepLog: "On"
+  k8sLoggingParser: "On"
+  k8sLoggingExclude: "On"
+  bufferSize: "0"
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+priorityClassName: platform-critical
+
+tolerations:
+  - operator: Exists
+    effect: NoSchedule
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  capabilities:
+    drop:
+      - ALL
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+
+serviceAccount:
+  create: "true"
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::${AWS_ACCOUNT_ID}:role/cloud-platform-eks-fluent-bit"
+
+# Monitoring and health checks
+livenessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: 2020
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: 2020
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Enable HTTP server for monitoring
+service:
+  type: ClusterIP
+  port: 2020
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "2020"
+    prometheus.io/path: "/api/v1/metrics/prometheus"

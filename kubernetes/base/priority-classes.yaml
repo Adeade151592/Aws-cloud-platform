@@ -1,0 +1,32 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: platform-critical
+value: 1000000
+globalDefault: false
+description: "Priority class for critical platform services (monitoring, logging, DNS)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: production-high
+value: 10000
+globalDefault: false
+description: "Priority class for high-priority production workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: production-medium
+value: 1000
+globalDefault: true
+description: "Priority class for standard production workloads (default)"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: production-low
+value: 100
+globalDefault: false
+description: "Priority class for low-priority batch jobs and non-critical workloads"

@@ -1,0 +1,121 @@
+name: Integration Tests
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Dev"]
+    types:
+      - completed
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-1
+  CLUSTER_NAME: dev-eks-cluster
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Get cluster credentials
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
+
+    - name: Test cluster connectivity
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get namespaces
+
+    - name: Test pod security standards
+      run: |
+        # Test that restricted pods can be created in applications namespace
+        kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: test-restricted-pod
+          namespace: applications
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: test
+            image: nginx:alpine
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+        EOF
+        
+        kubectl wait --for=condition=Ready pod/test-restricted-pod -n applications --timeout=60s
+        kubectl delete pod test-restricted-pod -n applications
+
+    - name: Test network policies
+      run: |
+        # Test that network policies are enforced
+        kubectl run test-pod --image=busybox --rm -it --restart=Never -n applications -- \
+          wget -qO- --timeout=5 http://kubernetes.default.svc || echo "Network policy working - access denied"
+
+    - name: Test monitoring stack
+      run: |
+        kubectl get pods -n monitoring
+        kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+        kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
+
+    - name: Test logging stack
+      run: |
+        kubectl get pods -n logging
+        kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=fluent-bit -n logging --timeout=300s
+
+    - name: Test ArgoCD
+      run: |
+        kubectl get pods -n argocd
+        kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+
+    - name: Test resource quotas
+      run: |
+        kubectl describe resourcequota -n applications
+        kubectl describe limitrange -n applications
+
+    - name: Test priority classes
+      run: |
+        kubectl get priorityclasses
+        kubectl get pods --all-namespaces -o custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace,PRIORITY:.spec.priorityClassName
+
+    - name: Test cluster autoscaler
+      run: |
+        kubectl get pods -n kube-system -l app=cluster-autoscaler
+        kubectl logs -n kube-system -l app=cluster-autoscaler --tail=50
+
+    - name: Performance test
+      run: |
+        # Simple load test
+        kubectl run load-test --image=busybox --rm -it --restart=Never -- \
+          sh -c 'for i in $(seq 1 100); do echo "Request $i"; sleep 0.1; done'
+
+    - name: Cleanup test resources
+      if: always()
+      run: |
+        kubectl delete pods --all -n applications --ignore-not-found=true

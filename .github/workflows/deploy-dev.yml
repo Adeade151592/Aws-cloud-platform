@@ -1,0 +1,151 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: 'Destroy infrastructure'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: 1.5.0
+  AWS_REGION: eu-west-1
+  ENVIRONMENT: dev
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Deploy Backend (if not exists)
+      run: |
+        terraform init
+        terraform plan -out=tfplan
+        terraform apply tfplan
+      working-directory: terraform/backend
+      continue-on-error: true
+
+    - name: Deploy Dev Environment
+      if: ${{ !inputs.destroy }}
+      run: |
+        terraform init
+        terraform plan -out=tfplan
+        terraform apply tfplan
+      working-directory: terraform/environments/dev
+
+    - name: Destroy Dev Environment
+      if: ${{ inputs.destroy }}
+      run: |
+        terraform init
+        terraform destroy -auto-approve
+      working-directory: terraform/environments/dev
+
+    - name: Get cluster credentials
+      if: ${{ !inputs.destroy }}
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name dev-eks-cluster
+
+    - name: Deploy Kubernetes base resources
+      if: ${{ !inputs.destroy }}
+      run: |
+        kubectl apply -f kubernetes/base/
+
+    - name: Wait for cluster readiness
+      if: ${{ !inputs.destroy }}
+      run: |
+        kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+  deploy-applications:
+    name: Deploy Applications
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: ${{ !inputs.destroy }}
+    environment: dev
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+
+    - name: Get cluster credentials
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name dev-eks-cluster
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add argo https://argoproj.github.io/argo-helm
+        helm repo add eks https://aws.github.io/eks-charts
+        helm repo add external-secrets https://charts.external-secrets.io
+        helm repo update
+
+    - name: Create Grafana secret
+      run: |
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create secret generic grafana-admin-secret \
+          --from-literal=admin-user=admin \
+          --from-literal=admin-password=${{ secrets.GRAFANA_PASSWORD }} \
+          -n monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy monitoring stack
+      run: |
+        envsubst < kubernetes/monitoring/prometheus-values.yaml | \
+        helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack \
+          -n monitoring --create-namespace -f -
+
+    - name: Deploy logging
+      run: |
+        kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
+        export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        envsubst < kubernetes/logging/fluent-bit-values.yaml | \
+        helm upgrade --install aws-for-fluent-bit eks/aws-for-fluent-bit \
+          -n logging -f -
+
+    - name: Deploy ArgoCD
+      run: |
+        kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+        export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+        export PLATFORM_REPO_URL=${{ github.server_url }}/${{ github.repository }}
+        export APPS_REPO_URL=${{ secrets.APPS_REPO_URL }}
+        envsubst < kubernetes/applications/argocd-values.yaml | \
+        helm upgrade --install argocd argo/argo-cd \
+          -n argocd -f -
+
+    - name: Verify deployment
+      run: |
+        kubectl get nodes
+        kubectl get pods --all-namespaces
+        kubectl get svc --all-namespaces

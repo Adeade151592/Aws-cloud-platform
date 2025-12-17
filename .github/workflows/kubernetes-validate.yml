@@ -1,0 +1,98 @@
+name: Kubernetes Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'kubernetes/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'kubernetes/**'
+
+jobs:
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install yamllint
+      run: pip install yamllint
+
+    - name: Run yamllint
+      run: yamllint -c .yamllint.yaml kubernetes/
+
+  kubernetes-validate:
+    name: Kubernetes Validate
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Validate Kubernetes manifests
+      run: |
+        find kubernetes/ -name "*.yaml" -o -name "*.yml" | while read file; do
+          echo "Validating $file"
+          kubectl --dry-run=client --validate=true apply -f "$file" || exit 1
+        done
+
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.12.0'
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add argo https://argoproj.github.io/argo-helm
+        helm repo add eks https://aws.github.io/eks-charts
+        helm repo add external-secrets https://charts.external-secrets.io
+        helm repo update
+
+    - name: Lint Helm values
+      run: |
+        helm lint --values kubernetes/monitoring/prometheus-values.yaml prometheus-community/kube-prometheus-stack
+        helm lint --values kubernetes/applications/argocd-values.yaml argo/argo-cd
+        helm lint --values kubernetes/logging/fluent-bit-values.yaml eks/aws-for-fluent-bit
+        helm lint --values kubernetes/monitoring/external-secrets-values.yaml external-secrets/external-secrets
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Run Kubesec
+      run: |
+        curl -sSX POST --data-binary @kubernetes/base/pod-security-standards.yaml \
+          https://v2.kubesec.io/scan | jq .
+
+    - name: Run Polaris
+      uses: fairwindsops/polaris/.github/actions/polaris@master
+      with:
+        config: |
+          checks:
+            cpuRequestsMissing: warning
+            memoryRequestsMissing: warning
+            runAsRootAllowed: error
+            runAsNonRoot: error
