@@ -19,6 +19,10 @@ Enterprise-grade AWS infrastructure with EKS, monitoring, logging, and GitOps.
 
 ## Quick Start
 
+**First time?** See [QUICKSTART.md](QUICKSTART.md) for step-by-step setup.
+
+### Summary
+
 ### Prerequisites
 
 - AWS CLI configured
