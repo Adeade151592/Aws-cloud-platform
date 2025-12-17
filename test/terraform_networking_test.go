@@ -8,6 +8,9 @@ import (
 )
 
 func TestTerraformNetworking(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	t.Parallel()
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
@@ -18,13 +21,17 @@ func TestTerraformNetworking(t *testing.T) {
 			"az_count":     3,
 			"cluster_name": "test-eks-cluster",
 		},
+		BackendConfig: map[string]interface{}{
+			"path": "test-terraform.tfstate",
+		},
 		NoColor: true,
 	})
 
 	defer terraform.Destroy(t, terraformOptions)
 
-	terraform.InitAndValidate(t, terraformOptions)
-	planOutput := terraform.Plan(t, terraformOptions)
+	terraform.Init(t, terraformOptions)
+	terraform.Validate(t, terraformOptions)
+	planOutput := terraform.InitAndPlan(t, terraformOptions)
 
 	assert.Contains(t, planOutput, "aws_vpc.main")
 	assert.Contains(t, planOutput, "aws_subnet.private")
@@ -59,7 +66,10 @@ func TestNetworkingAZCount(t *testing.T) {
 				NoColor: true,
 			}
 
-			_, err := terraform.InitAndValidateE(t, terraformOptions)
+			_, err := terraform.InitE(t, terraformOptions)
+			if err == nil {
+				_, err = terraform.ValidateE(t, terraformOptions)
+			}
 			if tt.shouldError {
 				assert.Error(t, err)
 			}

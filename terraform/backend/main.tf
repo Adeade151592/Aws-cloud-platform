@@ -80,6 +80,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
     id     = "terraform_state_lifecycle"
     status = "Enabled"
 
+    filter {}
+
     noncurrent_version_expiration {
       noncurrent_days = 90
     }
@@ -87,27 +89,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
-  }
-}
-
-# S3 bucket notification for monitoring
-resource "aws_s3_bucket_notification" "terraform_state" {
-  bucket = aws_s3_bucket.terraform_state.id
-
-  cloudwatch_configuration {
-    cloudwatch_configuration {
-      events = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
-    }
-  }
-}
-
-# CloudWatch log group for S3 access logs
-resource "aws_cloudwatch_log_group" "s3_access_logs" {
-  name              = "/aws/s3/${var.state_bucket_name}/access-logs"
-  retention_in_days = 30
-
-  tags = {
-    Name = "S3 Terraform State Access Logs"
   }
 }
 

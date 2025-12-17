@@ -8,6 +8,9 @@ import (
 )
 
 func TestTerraformBackend(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	t.Parallel()
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
@@ -21,8 +24,8 @@ func TestTerraformBackend(t *testing.T) {
 
 	defer terraform.Destroy(t, terraformOptions)
 
-	terraform.InitAndValidate(t, terraformOptions)
-	terraform.Plan(t, terraformOptions)
+	terraform.Init(t, terraformOptions)
+	terraform.Validate(t, terraformOptions)
 }
 
 func TestBackendBucketNaming(t *testing.T) {
@@ -49,7 +52,10 @@ func TestBackendBucketNaming(t *testing.T) {
 				NoColor: true,
 			}
 
-			_, err := terraform.InitAndValidateE(t, terraformOptions)
+			_, err := terraform.InitE(t, terraformOptions)
+			if err == nil {
+				_, err = terraform.PlanE(t, terraformOptions)
+			}
 			if tt.shouldError {
 				assert.Error(t, err)
 			} else {

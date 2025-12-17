@@ -8,6 +8,9 @@ import (
 )
 
 func TestTerraformEKS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	t.Parallel()
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
@@ -26,8 +29,9 @@ func TestTerraformEKS(t *testing.T) {
 		NoColor: true,
 	})
 
-	terraform.InitAndValidate(t, terraformOptions)
-	planOutput := terraform.Plan(t, terraformOptions)
+	terraform.Init(t, terraformOptions)
+	terraform.Validate(t, terraformOptions)
+	planOutput := terraform.InitAndPlan(t, terraformOptions)
 
 	assert.Contains(t, planOutput, "aws_eks_cluster.main")
 	assert.Contains(t, planOutput, "aws_eks_node_group.main")
@@ -48,6 +52,9 @@ func TestEKSPublicAccessValidation(t *testing.T) {
 		NoColor: true,
 	}
 
-	_, err := terraform.InitAndValidateE(t, terraformOptions)
+	_, err := terraform.InitE(t, terraformOptions)
+	if err == nil {
+		_, err = terraform.ValidateE(t, terraformOptions)
+	}
 	assert.Error(t, err, "Should fail when public access enabled without CIDRs")
 }
