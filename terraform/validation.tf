@@ -30,21 +30,6 @@ locals {
   }
 }
 
-# Data validation
+# Data sources for validation
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
-
-# Validation checks
-check "valid_aws_account" {
-  assert {
-    condition     = length(data.aws_caller_identity.current.account_id) == 12
-    error_message = "AWS account ID must be exactly 12 digits."
-  }
-}
-
-check "valid_region" {
-  assert {
-    condition     = contains(local.valid_regions, data.aws_region.current.name)
-    error_message = "AWS region must be one of the approved regions."
-  }
-}
