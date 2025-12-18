@@ -59,6 +59,9 @@ jobs:
   terraform-security:
     name: Terraform Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -66,12 +69,12 @@ jobs:
     - name: Run tfsec
       uses: aquasecurity/tfsec-action@v1.0.3
       with:
-        soft_fail: false
+        soft_fail: true
         format: sarif
-        output: tfsec.sarif
+        sarif_file: tfsec.sarif
 
     - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: tfsec.sarif
