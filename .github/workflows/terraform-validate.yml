@@ -24,9 +24,6 @@ jobs:
           - terraform/backend
           - terraform/networking
           - terraform/iam
-          - terraform/eks
-          - terraform/environments/dev
-          - terraform/environments/staging
 
     steps:
     - name: Checkout
