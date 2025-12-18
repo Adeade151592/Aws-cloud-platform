@@ -37,5 +37,5 @@ jobs:
 
     - name: Verify Backend
       run: |
-        aws s3 ls s3://cloud-platform-terraform-state
+        aws s3 ls s3://cloudplatformterraformstate
         aws dynamodb describe-table --table-name cloud-platform-terraform-locks
