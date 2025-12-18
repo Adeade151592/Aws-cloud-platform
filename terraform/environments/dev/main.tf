@@ -58,8 +58,8 @@ module "eks" {
   environment              = "dev"
   cluster_name             = "dev-eks-cluster"
   kubernetes_version       = "1.29"
-  enable_public_access     = false  # Disable public access for security
-  public_access_cidrs      = []     # No public access
+  enable_public_access     = true   # Enable for GitHub Actions
+  public_access_cidrs      = ["0.0.0.0/0"]  # GitHub Actions IPs - restrict in production
   node_group_desired_size  = 2
   node_group_min_size      = 1
   node_group_max_size      = 4
