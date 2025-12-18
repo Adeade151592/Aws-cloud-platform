@@ -10,27 +10,6 @@ terraform {
       version = "~> 4.0"
     }
   }
-
-  backend "s3" {
-    bucket         = "cloudplatformterraformstate"
-    key            = "eks/terraform.tfstate"
-    region         = "eu-west-1"
-    encrypt        = true
-    dynamodb_table = "cloud-platform-terraform-locks"
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "aws-cloud-platform"
-      ManagedBy   = "Terraform"
-      Component   = "eks"
-      Owner       = "platform-engineering"
-    }
-  }
 }
 
 data "terraform_remote_state" "networking" {

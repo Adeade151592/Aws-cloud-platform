@@ -6,27 +6,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  backend "s3" {
-    bucket         = "cloudplatformterraformstate"
-    key            = "iam/terraform.tfstate"
-    region         = "eu-west-1"
-    encrypt        = true
-    dynamodb_table = "cloud-platform-terraform-locks"
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "aws-cloud-platform"
-      ManagedBy   = "Terraform"
-      Component   = "iam"
-      Owner       = "platform-engineering"
-    }
-  }
 }
 
 # EKS Cluster IAM Role
