@@ -80,3 +80,30 @@ variable "ebs_csi_version" {
   type        = string
   default     = "v1.26.0-eksbuild.1"
 }
+
+# Networking outputs
+variable "private_subnet_ids" {
+  description = "Private subnet IDs from networking module"
+  type        = list(string)
+}
+
+variable "public_subnet_ids" {
+  description = "Public subnet IDs from networking module"
+  type        = list(string)
+}
+
+# IAM outputs  
+variable "eks_cluster_role_arn" {
+  description = "EKS cluster IAM role ARN"
+  type        = string
+}
+
+variable "eks_node_group_role_arn" {
+  description = "EKS node group IAM role ARN"
+  type        = string
+}
+
+variable "ebs_csi_driver_role_arn" {
+  description = "EBS CSI driver IAM role ARN"
+  type        = string
+}

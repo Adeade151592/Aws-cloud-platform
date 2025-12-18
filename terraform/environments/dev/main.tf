@@ -64,4 +64,13 @@ module "eks" {
   node_group_min_size      = 1
   node_group_max_size      = 4
   node_instance_types      = ["t3.medium"]
+
+  # Networking outputs
+  private_subnet_ids = module.networking.private_subnet_ids
+  public_subnet_ids  = module.networking.public_subnet_ids
+
+  # IAM outputs
+  eks_cluster_role_arn     = module.iam.eks_cluster_role_arn
+  eks_node_group_role_arn  = module.iam.eks_node_group_role_arn
+  ebs_csi_driver_role_arn  = module.iam.ebs_csi_driver_role_arn
 }

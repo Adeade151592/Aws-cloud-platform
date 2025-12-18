@@ -12,28 +12,10 @@ terraform {
   }
 }
 
-data "terraform_remote_state" "networking" {
-  backend = "s3"
-  config = {
-    bucket = "cloudplatformterraformstate"
-    key    = "networking/terraform.tfstate"
-    region = var.aws_region
-  }
-}
-
-data "terraform_remote_state" "iam" {
-  backend = "s3"
-  config = {
-    bucket = "cloudplatformterraformstate"
-    key    = "iam/terraform.tfstate"
-    region = var.aws_region
-  }
-}
-
 # EKS Cluster
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
-  role_arn = data.terraform_remote_state.iam.outputs.eks_cluster_role_arn
+  role_arn = var.eks_cluster_role_arn
   version  = var.kubernetes_version
   
   # Ensure cluster creation doesn't fail due to dependencies
@@ -45,8 +27,8 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids              = concat(
-      data.terraform_remote_state.networking.outputs.private_subnet_ids,
-      data.terraform_remote_state.networking.outputs.public_subnet_ids
+      var.private_subnet_ids,
+      var.public_subnet_ids
     )
     endpoint_private_access = true
     endpoint_public_access  = var.enable_public_access
@@ -59,10 +41,6 @@ resource "aws_eks_cluster" "main" {
     Name        = var.cluster_name
     Environment = var.environment
   }
-
-  depends_on = [
-    data.terraform_remote_state.iam
-  ]
 }
 
 # OIDC Provider for IRSA
@@ -84,8 +62,8 @@ resource "aws_iam_openid_connect_provider" "cluster" {
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-node-group"
-  node_role_arn   = data.terraform_remote_state.iam.outputs.eks_node_group_role_arn
-  subnet_ids      = data.terraform_remote_state.networking.outputs.private_subnet_ids
+  node_role_arn   = var.eks_node_group_role_arn
+  subnet_ids      = var.private_subnet_ids
   version         = var.kubernetes_version
   
   # Error handling and timeouts
@@ -174,7 +152,7 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = aws_eks_cluster.main.name
   addon_name               = "aws-ebs-csi-driver"
   addon_version            = var.ebs_csi_version
-  service_account_role_arn = data.terraform_remote_state.iam.outputs.ebs_csi_driver_role_arn
+  service_account_role_arn = var.ebs_csi_driver_role_arn
   resolve_conflicts_on_update = "PRESERVE"
 
   tags = {
