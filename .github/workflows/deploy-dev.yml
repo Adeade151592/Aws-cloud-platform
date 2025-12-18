@@ -39,13 +39,6 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Verify Backend Resources
-      run: |
-        echo "Checking backend resources..."
-        aws s3 ls s3://cloudplatformterraformstate || echo "Backend bucket exists"
-        aws kms describe-key --key-id faa8e250-4ad3-4167-96c2-8dcf26786a45 || echo "KMS key exists"
-        aws dynamodb describe-table --table-name cloud-platform-terraform-locks || echo "DynamoDB table exists"
-
     - name: Deploy Dev Environment
       if: ${{ !inputs.destroy }}
       run: |
