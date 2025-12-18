@@ -12,7 +12,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "cloud-platform-terraform-state"
+    bucket         = "cloudplatformterraformstate"
     key            = "eks/terraform.tfstate"
     region         = "eu-west-1"
     encrypt        = true
@@ -36,7 +36,7 @@ provider "aws" {
 data "terraform_remote_state" "networking" {
   backend = "s3"
   config = {
-    bucket = "cloud-platform-terraform-state"
+    bucket = "cloudplatformterraformstate"
     key    = "networking/terraform.tfstate"
     region = var.aws_region
     skip_credentials_validation = true
@@ -45,7 +45,7 @@ data "terraform_remote_state" "networking" {
 data "terraform_remote_state" "iam" {
   backend = "s3"
   config = {
-    bucket = "cloud-platform-terraform-state"
+    bucket = "cloudplatformterraformstate"
     key    = "iam/terraform.tfstate"
     region = var.aws_region
     skip_credentials_validation = true
@@ -123,7 +123,7 @@ resource "aws_eks_node_group" "main" {
   # Lifecycle management
   lifecycle {
     ignore_changes = [scaling_config[0].desired_size]
-    create_before_destroy = true
+    create_before_destroy = false
   }
 
   scaling_config {
