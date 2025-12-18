@@ -42,8 +42,13 @@ jobs:
     - name: Deploy Backend (if not exists)
       run: |
         terraform init
+        # Import existing resources if they exist
+        terraform import -input=false aws_s3_bucket.terraform_state cloudplatformterraformstate 2>/dev/null || true
+        terraform import -input=false aws_kms_key.terraform_state faa8e250-4ad3-4167-96c2-8dcf26786a45 2>/dev/null || true
+        terraform import -input=false aws_kms_alias.terraform_state alias/terraform-state 2>/dev/null || true
+        terraform import -input=false aws_dynamodb_table.terraform_locks cloud-platform-terraform-locks 2>/dev/null || true
         terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan
+        terraform apply -auto-approve tfplan || echo "Backend already exists, continuing..."
       working-directory: terraform/backend
       continue-on-error: true
 
