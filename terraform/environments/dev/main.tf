@@ -57,7 +57,7 @@ module "eks" {
   aws_region               = "eu-west-1"
   environment              = "dev"
   cluster_name             = "dev-eks-cluster"
-  kubernetes_version       = "1.30"
+  kubernetes_version       = "1.29"
   enable_public_access     = false  # Disable public access for security
   public_access_cidrs      = []     # No public access
   node_group_desired_size  = 2
