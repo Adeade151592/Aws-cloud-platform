@@ -1,16 +1,18 @@
 name: Terratest
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'terraform/**'
-      - 'test/**'
+  # Disabled auto-run - requires infrastructure to exist
+  # push:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'test/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'terraform/**'
       - 'test/**'
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.21'
