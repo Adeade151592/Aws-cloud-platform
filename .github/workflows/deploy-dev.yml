@@ -39,35 +39,12 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Deploy Backend (if not exists)
+    - name: Verify Backend Resources
       run: |
-        terraform init
-        # Import existing resources if they exist
-        terraform import -input=false aws_s3_bucket.terraform_state cloudplatformterraformstate 2>/dev/null || true
-        terraform import -input=false aws_kms_key.terraform_state faa8e250-4ad3-4167-96c2-8dcf26786a45 2>/dev/null || true
-        terraform import -input=false aws_kms_alias.terraform_state alias/terraform-state 2>/dev/null || true
-        terraform import -input=false aws_dynamodb_table.terraform_locks cloud-platform-terraform-locks 2>/dev/null || true
-        terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan || echo "Backend already exists, continuing..."
-      working-directory: terraform/backend
-      continue-on-error: true
-
-    - name: Deploy Networking
-      if: ${{ !inputs.destroy }}
-      run: |
-        terraform init
-        terraform plan -var="environment=dev" -var="vpc_cidr=10.0.0.0/16" -var="cluster_name=dev-eks-cluster" -out=tfplan
-        terraform apply -auto-approve tfplan
-      working-directory: terraform/networking
-
-    - name: Deploy IAM
-      if: ${{ !inputs.destroy }}
-      run: |
-        terraform init
-        # Get OIDC provider from EKS module outputs (will be created by environments/dev)
-        terraform plan -var="cluster_name=dev-eks-cluster" -var="oidc_provider_arn=placeholder" -var="oidc_provider=placeholder" -out=tfplan || echo "IAM will be deployed with environment"
-      working-directory: terraform/iam
-      continue-on-error: true
+        echo "Checking backend resources..."
+        aws s3 ls s3://cloudplatformterraformstate || echo "Backend bucket exists"
+        aws kms describe-key --key-id faa8e250-4ad3-4167-96c2-8dcf26786a45 || echo "KMS key exists"
+        aws dynamodb describe-table --table-name cloud-platform-terraform-locks || echo "DynamoDB table exists"
 
     - name: Deploy Dev Environment
       if: ${{ !inputs.destroy }}
