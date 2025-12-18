@@ -1,8 +1,9 @@
 name: Deploy to Dev
 
 on:
-  push:
-    branches: [ main ]
+  # Disabled auto-deploy - use workflow_dispatch for manual deployment
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:
     inputs:
       destroy:
