@@ -64,6 +64,4 @@ module "eks" {
   node_group_min_size      = 2
   node_group_max_size      = 6
   node_instance_types      = ["t3.large"]
-
-  depends_on = [module.networking, module.iam]
 }

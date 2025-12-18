@@ -31,10 +31,6 @@ variable "public_access_cidrs" {
   description = "CIDR blocks allowed to access public endpoint"
   type        = list(string)
   default     = []
-  validation {
-    condition     = length(var.public_access_cidrs) > 0 || !var.enable_public_access
-    error_message = "Public access CIDRs must be specified when public access is enabled."
-  }
 }
 
 variable "node_group_desired_size" {

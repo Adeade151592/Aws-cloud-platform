@@ -26,7 +26,7 @@ variable "oidc_provider" {
   description = "OIDC provider URL without https://"
   type        = string
   validation {
-    condition     = can(regex("^oidc\.eks\.[a-z0-9-]+\.amazonaws\.com/id/[A-Z0-9]+$", var.oidc_provider))
+    condition     = can(regex("^oidc\\.eks\\.[a-z0-9-]+\\.amazonaws\\.com/id/[A-Z0-9]+$", var.oidc_provider))
     error_message = "OIDC provider must be a valid EKS OIDC provider URL without https://."
   }
 }

@@ -47,10 +47,15 @@ resource "aws_s3_bucket_versioning" "terraform_state" {
 # KMS key for S3 encryption
 resource "aws_kms_key" "terraform_state" {
   description             = "KMS key for Terraform state encryption"
-  deletion_window_in_days = 7
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
 
   tags = {
     Name = "Terraform State Encryption Key"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

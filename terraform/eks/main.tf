@@ -39,19 +39,15 @@ data "terraform_remote_state" "networking" {
     bucket = "cloudplatformterraformstate"
     key    = "networking/terraform.tfstate"
     region = var.aws_region
-    skip_credentials_validation = true
-    skip_metadata_api_check     = true
   }
+}
+
 data "terraform_remote_state" "iam" {
   backend = "s3"
   config = {
     bucket = "cloudplatformterraformstate"
     key    = "iam/terraform.tfstate"
     region = var.aws_region
-    skip_credentials_validation = true
-    skip_metadata_api_check     = true
-  }
-}
   }
 }
 
