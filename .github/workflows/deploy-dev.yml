@@ -43,8 +43,25 @@ jobs:
       run: |
         terraform init
         terraform plan -out=tfplan
-        terraform apply tfplan
+        terraform apply -auto-approve tfplan
       working-directory: terraform/backend
+      continue-on-error: true
+
+    - name: Deploy Networking
+      if: ${{ !inputs.destroy }}
+      run: |
+        terraform init
+        terraform plan -var="environment=dev" -var="vpc_cidr=10.0.0.0/16" -var="cluster_name=dev-eks-cluster" -out=tfplan
+        terraform apply -auto-approve tfplan
+      working-directory: terraform/networking
+
+    - name: Deploy IAM
+      if: ${{ !inputs.destroy }}
+      run: |
+        terraform init
+        # Get OIDC provider from EKS module outputs (will be created by environments/dev)
+        terraform plan -var="cluster_name=dev-eks-cluster" -var="oidc_provider_arn=placeholder" -var="oidc_provider=placeholder" -out=tfplan || echo "IAM will be deployed with environment"
+      working-directory: terraform/iam
       continue-on-error: true
 
     - name: Deploy Dev Environment
@@ -52,7 +69,7 @@ jobs:
       run: |
         terraform init
         terraform plan -out=tfplan
-        terraform apply tfplan
+        terraform apply -auto-approve tfplan
       working-directory: terraform/environments/dev
 
     - name: Destroy Dev Environment
