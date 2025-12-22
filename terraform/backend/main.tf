@@ -44,36 +44,14 @@ resource "aws_s3_bucket_versioning" "terraform_state" {
   }
 }
 
-# KMS key for S3 encryption
-resource "aws_kms_key" "terraform_state" {
-  description             = "KMS key for Terraform state encryption"
-  deletion_window_in_days = 30
-  enable_key_rotation     = true
-
-  tags = {
-    Name = "Terraform State Encryption Key"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_kms_alias" "terraform_state" {
-  name          = "alias/terraform-state"
-  target_key_id = aws_kms_key.terraform_state.key_id
-}
-
-# Enable server-side encryption with KMS
+# Enable server-side encryption with AWS-managed keys
 resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.terraform_state.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
